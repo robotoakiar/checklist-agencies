@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>เช็คลิสต์ติดตั้ง (21 หน่วยงาน)</title>
+  <style>
+    :root{
+      --bg:#0b0f13; --panel:#11161c; --muted:#7b8a9a; --text:#e6eef7; --brand:#4cc9f0; --accent:#80ed99; --warn:#ffbe0b; --danger:#ff477e; --line:#1f2730;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,"Noto Sans Thai",sans-serif;background:linear-gradient(180deg,#0a0e12,#0e141a 30%,#0b1016);color:var(--text)}
+    header{position:sticky;top:0;z-index:10;background:rgba(11,15,19,.75);backdrop-filter: blur(10px);border-bottom:1px solid var(--line)}
+    .container{max-width:1100px;margin:0 auto;padding:18px}
+    h1{margin:0;font-size: clamp(20px,2.8vw,32px);letter-spacing:.3px;display:flex;gap:10px;align-items:center}
+    .pill{font-size:12px;padding:4px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+    input[type="search"], select, button{background:#0e1319;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+    input[type="search"]{flex:1;min-width:220px}
+    button{cursor:pointer}
+    button.primary{background:linear-gradient(180deg,#1a2230,#131a24);border:1px solid #243040}
+    button.ghost{background:transparent}
+    button.brand{border-color:#2a4152;box-shadow: inset 0 0 0 1px #203041;color:#cfefff}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:16px}
+    .card{background:linear-gradient(180deg,#0d141b,#0c1219);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+    .card-header{padding:14px 14px 10px;border-bottom:1px dashed #1a2430}
+    .title{display:flex;gap:8px;align-items:baseline}
+    .acronym{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:2px 6px;border-radius:6px}
+    .progress{display:flex;align-items:center;gap:10px;margin-top:8px}
+    .bar{flex:1;height:8px;background:#0a0f14;border:1px solid #16202b;border-radius:999px;overflow:hidden}
+    .bar > span{display:block;height:100%;background:linear-gradient(90deg,var(--brand),#58f1c9);width:0%}
+    .percent{font-size:12px;color:var(--muted)}
+    .tasks{padding:10px 12px 14px;display:grid;gap:8px}
+    .task{display:flex;gap:10px;align-items:flex-start}
+    .task input{margin-top:2.5px;transform:scale(1.1)}
+    .task label{line-height:1.35}
+    .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .tag{font-size:11px;color:#b9c7d6;border:1px solid #1e2a36;padding:2px 6px;border-radius:999px}
+    .card-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px dashed #1a2430;padding:10px 12px}
+    .mini{font-size:12px;color:var(--muted)}
+
+    .footer-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .footer{color:var(--muted);border-top:1px solid var(--line);margin-top:18px;padding:12px 0 30px}
+    .kbd{border:1px solid var(--line);border-bottom-width:2px;padding:1px 6px;border-radius:6px;color:#cbd6e2;font-size:12px}
+
+    /* print */
+    @media print{
+      header, .footer, .toolbar .ghost, .toolbar .brand, .toolbar .export, .toolbar .import {display:none !important}
+      body{background:#fff;color:#000}
+      .card{break-inside:avoid;background:#fff;border-color:#ddd}
+      .bar, .percent{display:none}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>เช็คลิสต์ติดตั้งระบบ <span class="pill" id="summary">กำลังโหลด…</span></h1>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="ค้นหาหน่วยงานหรือย่ออังกฤษ เช่น OCSC, กระทรวง… (กด / เพื่อโฟกัส)" />
+        <button class="primary" id="toggleAll">พับ/ขยาย ทุกการ์ด</button>
+        <button class="ghost" id="clearAll">รีเซ็ตเช็คบ็อกซ์ทั้งหมด</button>
+        <button class="brand export" id="exportBtn">ส่งออก JSON</button>
+        <label class="brand import" style="display:inline-flex;gap:8px;align-items:center;padding:10px 12px;border-radius:10px;cursor:pointer">
+          นำเข้า JSON <input id="importFile" type="file" accept="application/json" style="display:none" />
+        </label>
+        <button class="ghost" onclick="window.print()">พิมพ์ / PDF</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="grid" id="grid"></div>
+    <div class="footer">
+      <div>บันทึกอัตโนมัติในเครื่องด้วย <span class="kbd">localStorage</span> • ปุ่มลัด: <span class="kbd">/</span> ค้นหา, <span class="kbd">Ctrl/Cmd + K</span> พับ/ขยาย</div>
+    </div>
+  </main>
+
+  <template id="card-tpl">
+    <section class="card" data-open="1">
+      <div class="card-header">
+        <div class="title">
+          <h3 class="name" style="margin:0;font-size:16px"></h3>
+          <span class="acronym"></span>
+        </div>
+        <div class="progress">
+          <div class="bar"><span></span></div>
+          <div class="percent">0/7</div>
+        </div>
+        <div class="meta"></div>
+      </div>
+      <div class="tasks"></div>
+      <div class="card-footer">
+        <div class="mini"></div>
+        <div class="footer-actions">
+          <button class="ghost toggle">พับ</button>
+          <button class="ghost reset">ล้างการ์ดนี้</button>
+        </div>
+      </div>
+    </section>
+  </template>
+
+  <script>
+    // ====== Config ======
+    const AGENCIES = [
+      { name: "สำนักงานปลัดกระทรวงเกษตรและสหกรณ์", code: "OPSMOAC" },
+      { name: "สำนักงานส่งเสริมเศรษฐกิจดิจิทัล", code: "DEPA" },
+      { name: "สำนักงานคณะกรรมการข้าราชการพลเรือน", code: "OCSC" },
+      { name: "สำนักงานปลัดกระทรัพยากรธรรมชาติและสิ่งแวดล้อม", code: "MNRE" },
+      { name: "สำนักงานคณะกรรมการอาหารและยา", code: "FDA" },
+      { name: "สำนักงบประมาณ", code: "BB" },
+      { name: "สำนักงานการบินพลเรือนแห่งประเทศไทย", code: "CAAT" },
+      { name: "สำนักงานปลัดกระทรวงศึกษาธิการ", code: "OPSME" },
+      { name: "กรมชลประทาน", code: "RID" },
+      { name: "ไปรษณีย์ไทย", code: "THP" },
+      { name: "กรมสนับสนุนบริการสุขภาพ", code: "HSS" },
+      { name: "สำนักงานคณะกรรมการคุ้มครองผู้บริโภค", code: "OCPB" },
+      { name: "กรมอุตุนิยมวิทยา", code: "TMD" },
+      { name: "กระทรวงการต่างประเทศ", code: "MFA" },
+      { name: "วิทยุการบินแห่งประเทศไทย", code: "AEROTHAI" },
+      { name: "องค์การเภสัชกรรม", code: "GPO" },
+      { name: "สำนักงานปลัดกระทรวงการท่องเที่ยวและกีฬา", code: "MOTS" },
+      { name: "การประปาส่วนภูมิภาค", code: "PWA" },
+      { name: "สำนักงานปรมาณูเพื่อสันติ", code: "OAP" },
+      { name: "สำนักงานปลัดกระทรวงการอุดมศึกษา วิทยาศาสตร์ วิจัยและนวัตกรรม", code: "OPS" },
+      { name: "สำนักงานหลักประกันสุขภาพแห่งชาติ", code: "NHSO" },
+    ];
+
+    // 7 tasks per agency
+    const TASKS = [
+      { page: 5, text: "เปลี่ยนรูป User Role Sync user" },
+      { page: 6, text: "เปลี่ยนรูป User Role Sync user" },
+      { page: 7, text: "เปลี่ยนรูป Add auth key" },
+      { page: 9, text: "เปลี่ยนชื่อ Instance name" },
+      { page: 9, text: "เปลี่ยนชื่อ User sync" },
+      { page: 9, text: "เปลี่ยนรูปผลการเชื่อมต่อ" },
+      { page: 9, text: "เปลี่ยนรูปทดสอบส่ง IOC" },
+    ];
+
+    const STORAGE_KEY = "checklist_agencies_v1";
+
+    // ====== State ======
+    const state = loadState();
+
+    function loadState(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return {};
+        return JSON.parse(raw) || {};
+      }catch(e){
+        console.warn("Cannot load state", e); return {};
+      }
+    }
+    function saveState(){
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state));}
+      catch(e){ console.warn("Cannot save state", e); }
+    }
+
+    // ====== Render ======
+    const grid = document.getElementById('grid');
+    const tpl = document.getElementById('card-tpl');
+
+    function render(){
+      grid.innerHTML = '';
+      const q = document.getElementById('search').value.trim().toLowerCase();
+      let totalChecked = 0; let totalTasks = AGENCIES.length * TASKS.length;
+
+      AGENCIES.forEach((ag, idx) => {
+        if(q && !(ag.name.toLowerCase().includes(q) || ag.code.toLowerCase().includes(q))) return;
+
+        const card = tpl.content.firstElementChild.cloneNode(true);
+        const id = ag.code;
+        const cardState = state[id] || { open: true, checks: Array(TASKS.length).fill(false) };
+
+        // header
+        card.querySelector('.name').textContent = `${idx+1}. ${ag.name}`;
+        card.querySelector('.acronym').textContent = `[${ag.code}]`;
+
+        // meta (pages)
+        const meta = card.querySelector('.meta');
+        const pages = [...new Set(TASKS.map(t=>t.page))];
+        pages.forEach(p=>{
+          const s = document.createElement('span');
+          s.className = 'tag'; s.textContent = `หน้า ${p}`; meta.appendChild(s);
+        });
+
+        // tasks
+        const tasksEl = card.querySelector('.tasks');
+        TASKS.forEach((t, i) => {
+          const wrap = document.createElement('div'); wrap.className = 'task';
+          const cb = document.createElement('input'); cb.type='checkbox'; cb.id = `${id}_t${i}`; cb.checked = !!cardState.checks[i];
+          const label = document.createElement('label'); label.setAttribute('for', cb.id);
+          label.innerHTML = `<strong>หน้า ${t.page}</strong> — ${t.text}`;
+          cb.addEventListener('change', () => {
+            state[id] = state[id] || { open:true, checks:Array(TASKS.length).fill(false) };
+            state[id].checks[i] = cb.checked; updateProgress(card, id); saveState(); updateSummary();
+          });
+          wrap.appendChild(cb); wrap.appendChild(label); tasksEl.appendChild(wrap);
+        });
+
+        // progress
+        updateProgress(card, id);
+
+        // footer
+        card.querySelector('.mini').textContent = 'บันทึกอัตโนมัติ';
+        const toggleBtn = card.querySelector('.toggle');
+        const resetBtn  = card.querySelector('.reset');
+
+        const setOpen = (open) => {
+          card.dataset.open = open? '1':'0';
+          tasksEl.style.display = open? 'grid':'none';
+          toggleBtn.textContent = open? 'พับ':'ขยาย';
+          state[id] = state[id] || { open:true, checks:Array(TASKS.length).fill(false) };
+          state[id].open = open; saveState();
+        };
+
+        setOpen(cardState.open !== false);
+
+        toggleBtn.addEventListener('click', () => setOpen(card.dataset.open !== '1'));
+        resetBtn.addEventListener('click', () => {
+          if(!confirm(`ล้างเช็คบ็อกซ์ทั้งหมดของ ${ag.name}?`)) return;
+          state[id] = { open: true, checks: Array(TASKS.length).fill(false) };
+          setOpen(true);
+          card.querySelectorAll('input[type="checkbox"]').forEach((c)=> c.checked=false);
+          updateProgress(card, id); saveState(); updateSummary();
+        });
+
+        grid.appendChild(card);
+
+        // accumulate totals
+        totalChecked += (state[id]?.checks||[]).filter(Boolean).length;
+      });
+
+      // summary
+      const summary = document.getElementById('summary');
+      const pct = Math.round((totalChecked/totalTasks)*100);
+      summary.textContent = `${totalChecked}/${totalTasks} งาน • ${pct}%`;
+    }
+
+    function updateProgress(card, id){
+      const checks = (state[id]?.checks)||[];
+      const done = checks.filter(Boolean).length;
+      const total = TASKS.length;
+      card.querySelector('.percent').textContent = `${done}/${total}`;
+      const bar = card.querySelector('.bar > span');
+      bar.style.width = `${(done/total)*100}%`;
+    }
+
+    // ====== Toolbar actions ======
+    document.getElementById('search').addEventListener('input', render);
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === '/' && document.activeElement.tagName !== 'INPUT'){
+        e.preventDefault(); document.getElementById('search').focus();
+      }
+      if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){
+        e.preventDefault(); toggleAllCards();
+      }
+    });
+
+    function toggleAllCards(){
+      const cards = [...document.querySelectorAll('.card')];
+      const anyOpen = cards.some(c => c.dataset.open==='1');
+      cards.forEach(c=>{
+        const btn = c.querySelector('.toggle');
+        const tasks = c.querySelector('.tasks');
+        const open = !anyOpen; // if any open, close all; else open all
+        c.dataset.open = open? '1':'0';
+        tasks.style.display = open? 'grid':'none';
+        btn.textContent = open? 'พับ':'ขยาย';
+      });
+      // persist
+      AGENCIES.forEach(ag=>{ state[ag.code] = state[ag.code]||{open:true,checks:Array(TASKS.length).fill(false)}; state[ag.code].open = !document.querySelector('.card')?.dataset?.open || document.querySelector('.card').dataset.open==='1'; });
+      saveState();
+    }
+
+    document.getElementById('toggleAll').addEventListener('click', toggleAllCards);
+
+    document.getElementById('clearAll').addEventListener('click', ()=>{
+      if(!confirm('ล้างเช็คบ็อกซ์ของทุกหน่วยงานทั้งหมดหรือไม่?')) return;
+      AGENCIES.forEach(ag=>{ state[ag.code] = { open:true, checks:Array(TASKS.length).fill(false) }; });
+      saveState(); render(); updateSummary();
+    });
+
+    function updateSummary(){
+      let totalChecked = 0; let totalTasks = AGENCIES.length * TASKS.length;
+      AGENCIES.forEach(ag=>{ totalChecked += (state[ag.code]?.checks||[]).filter(Boolean).length; });
+      const summary = document.getElementById('summary');
+      const pct = Math.round((totalChecked/totalTasks)*100);
+      summary.textContent = `${totalChecked}/${totalTasks} งาน • ${pct}%`;
+    }
+
+    // Export / Import
+    document.getElementById('exportBtn').addEventListener('click', ()=>{
+      const data = JSON.stringify(state, null, 2);
+      const blob = new Blob([data], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'checklist_state.json'; a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('importFile').addEventListener('change', (e)=>{
+      const file = e.target.files?.[0]; if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const obj = JSON.parse(reader.result);
+          if(typeof obj !== 'object') throw new Error('รูปแบบไฟล์ไม่ถูกต้อง');
+          Object.assign(state, obj); saveState(); render(); updateSummary();
+          alert('นำเข้าข้อมูลสำเร็จ');
+        }catch(err){ alert('ไม่สามารถอ่านไฟล์ JSON นี้ได้: '+err.message); }
+      };
+      reader.readAsText(file, 'utf-8');
+    });
+
+    // ====== Init ======
+    render(); updateSummary();
+  </script>
+</body>
+</html>
